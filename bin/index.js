@@ -9,7 +9,7 @@ const boxen = require('boxen');
 const ora = require('ora');
 const inquirer = require('inquirer');
 const fs = require('fs');
-const { readFile, writeFile, readdir } = require("fs").promises;
+const { readFile, writeFile, readdir } = require('fs').promises;
 const mergeImages = require('merge-images');
 const { Image, Canvas } = require('canvas');
 const ImageDataURI = require('image-data-uri');
@@ -33,33 +33,15 @@ let config = {
 let argv = require('minimist')(process.argv.slice(2));
 
 //DEFINITIONS
-const getDirectories = source =>
+const getDirectories = (source) =>
   fs
     .readdirSync(source, { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => dirent.name);
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name);
 
-const sleep = seconds => new Promise(resolve => setTimeout(resolve, seconds * 1000))
+const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
 //OPENING
-console.log(
-  boxen(
-    chalk.blue(
-      ' /$$   /$$ /$$$$$$$$ /$$$$$$$$        /$$$$$$  /$$$$$$$  /$$$$$$$$        /$$$$$$  /$$$$$$$$ /$$   /$$ /$$$$$$$$ /$$$$$$$   /$$$$$$  /$$$$$$$$ /$$$$$$  /$$$$$$$ \n' +
-        '| $$$ | $$| $$_____/|__  $$__/       /$$__  $$| $$__  $$|__  $$__/       /$$__  $$| $$_____/| $$$ | $$| $$_____/| $$__  $$ /$$__  $$|__  $$__//$$__  $$| $$__  $$\n' +
-        '| $$$$| $$| $$         | $$         | $$  \\ $$| $$  \\ $$   | $$         | $$  \\__/| $$      | $$$$| $$| $$      | $$  \\ $$| $$  \\ $$   | $$  | $$  \\ $$| $$  \\ $$\n' +
-        '| $$ $$ $$| $$$$$      | $$         | $$$$$$$$| $$$$$$$/   | $$         | $$ /$$$$| $$$$$   | $$ $$ $$| $$$$$   | $$$$$$$/| $$$$$$$$   | $$  | $$  | $$| $$$$$$$/\n' +
-        '| $$  $$$$| $$__/      | $$         | $$__  $$| $$__  $$   | $$         | $$|_  $$| $$__/   | $$  $$$$| $$__/   | $$__  $$| $$__  $$   | $$  | $$  | $$| $$__  $$\n' +
-        '| $$\\  $$$| $$         | $$         | $$  | $$| $$  \\ $$   | $$         | $$  \\ $$| $$      | $$\\  $$$| $$      | $$  \\ $$| $$  | $$   | $$  | $$  | $$| $$  \\ $$\n' +
-        '| $$ \\  $$| $$         | $$         | $$  | $$| $$  | $$   | $$         |  $$$$$$/| $$$$$$$$| $$ \\  $$| $$$$$$$$| $$  | $$| $$  | $$   | $$  |  $$$$$$/| $$  | $$\n' +
-        '|__/  \\__/|__/         |__/         |__/  |__/|__/  |__/   |__/          \\______/ |________/|__/  \\__/|________/|__/  |__/|__/  |__/   |__/   \\______/ |__/  |__/\n \n' +
-        'Made with '
-    ) +
-      chalk.red('❤') +
-      chalk.blue(' by NotLuksus'),
-    { borderColor: 'red', padding: 3 }
-  )
-);
 main();
 
 async function main() {
@@ -80,10 +62,10 @@ async function main() {
   loadingDirectories.succeed();
   loadingDirectories.clear();
   await traitsOrder(true);
-  await asyncForEach(traits, async trait => {
+  await asyncForEach(traits, async (trait) => {
     await setNames(trait);
   });
-  await asyncForEach(traits, async trait => {
+  await asyncForEach(traits, async (trait) => {
     await setWeights(trait);
   });
   const generatingImages = ora('Generating images');
@@ -115,7 +97,7 @@ async function main() {
 
 //GET THE BASEPATH FOR THE IMAGES
 async function getBasePath() {
-  if (config.basePath !== undefined) { 
+  if (config.basePath !== undefined) {
     basePath = config.basePath;
     return;
   }
@@ -150,7 +132,7 @@ async function getBasePath() {
 //GET THE OUTPUTPATH FOR THE IMAGES
 async function getOutputPath() {
   if (config.outputPath !== undefined) {
-    outputPath = config.outputPath
+    outputPath = config.outputPath;
     return;
   }
   const { output_path } = await inquirer.prompt([
@@ -171,8 +153,7 @@ async function getOutputPath() {
       {
         type: 'input',
         name: 'file_location',
-        message:
-          'Enter the path to your output_old directory (Absolute filepath)',
+        message: 'Enter the path to your output_old directory (Absolute filepath)',
       },
     ]);
     let lastChar = file_location.slice(-1);
@@ -188,8 +169,7 @@ async function checkForDuplicates() {
     {
       type: 'confirm',
       name: 'checkDuplicates',
-      message:
-        'Should duplicated images be deleted? (Might result in less images then expected)',
+      message: 'Should duplicated images be deleted? (Might result in less images then expected)',
     },
   ]);
   config.deleteDuplicates = checkDuplicates;
@@ -252,7 +232,7 @@ async function traitsOrder(isFirst) {
   };
   traitsPrompt.message = 'Which trait should be on top of that?';
   if (isFirst === true) traitsPrompt.message = 'Which trait is the background?';
-  traitsToSort.forEach(trait => {
+  traitsToSort.forEach((trait) => {
     const globalIndex = traits.indexOf(trait);
     traitsPrompt.choices.push({
       name: trait.toUpperCase(),
@@ -279,6 +259,7 @@ async function setNames(trait) {
       type: 'input',
       name: trait + '_name_' + i,
       message: 'What should be the name of the trait shown in ' + file + '?',
+      default: file.split('-')[0], // file name pattern {name}-{weight}.{ext}
     });
   });
   const selectedNames = await inquirer.prompt(namePrompt);
@@ -286,12 +267,12 @@ async function setNames(trait) {
     if (config.names && config.names[file] !== undefined) return;
     names[file] = selectedNames[trait + '_name_' + i];
   });
-  config.names = {...config.names, ...names};
+  config.names = { ...config.names, ...names };
 }
 
 //SET WEIGHTS FOR EVERY TRAIT
 async function setWeights(trait) {
-  if (config.weights && Object.keys(config.weights).length === Object.keys(names).length ) {
+  if (config.weights && Object.keys(config.weights).length === Object.keys(names).length) {
     weights = config.weights;
     return;
   }
@@ -302,6 +283,7 @@ async function setWeights(trait) {
       type: 'input',
       name: names[file] + '_weight',
       message: 'How many ' + names[file] + ' ' + trait + ' should there be?',
+      default: file.split('.')[0].split('-')[1], // file name pattern {name}-{weight}.{ext}
     });
   });
   const selectedWeights = await inquirer.prompt(weightPrompt);
@@ -323,7 +305,7 @@ async function generateWeightedTraits() {
   for (const trait of traits) {
     const traitWeights = [];
     const files = await getFilesForTrait(trait);
-    files.forEach(file => {
+    files.forEach((file) => {
       for (let i = 0; i < weights[file]; i++) {
         traitWeights.push(file);
       }
@@ -341,11 +323,11 @@ async function generateImages() {
   if (config.deleteDuplicates) {
     while (weightedTraits[0].length > 0 && noMoreMatches < 20000) {
       let picked = [];
-      order.forEach(id => {
+      order.forEach((id) => {
         let pickedImgId = pickRandom(weightedTraits[id]);
         picked.push(pickedImgId);
         let pickedImg = weightedTraits[id][pickedImgId];
-        images.push(basePath + traits[id] + '/' + pickedImg);
+        if (pickedImg) images.push(basePath + traits[id] + '/' + pickedImg);
       });
 
       if (existCombination(images)) {
@@ -366,10 +348,8 @@ async function generateImages() {
     }
   } else {
     while (weightedTraits[0].length > 0) {
-      order.forEach(id => {
-        images.push(
-          basePath + traits[id] + '/' + pickRandomAndRemove(weightedTraits[id])
-        );
+      order.forEach((id) => {
+        images.push(basePath + traits[id] + '/' + pickRandomAndRemove(weightedTraits[id]));
       });
       generateMetadataObject(id, images);
       const b64 = await mergeImages(images, { Canvas: Canvas, Image: Image });
@@ -404,10 +384,8 @@ function remove(array, toPick) {
 
 function existCombination(contains) {
   let exists = false;
-  seen.forEach(array => {
-    let isEqual =
-      array.length === contains.length &&
-      array.every((value, index) => value === contains[index]);
+  seen.forEach((array) => {
+    let isEqual = array.length === contains.length && array.every((value, index) => value === contains[index]);
     if (isEqual) exists = true;
   });
   return exists;
@@ -431,6 +409,7 @@ function generateMetadataObject(id, images) {
 }
 
 async function writeMetadata() {
+<<<<<<< Updated upstream
   if(config.metaData.splitFiles)
   {
     let metadata_output_dir = outputPath + "metadata/"
@@ -442,13 +421,24 @@ async function writeMetadata() {
     }
   }else
   {
+=======
+  if (config.metaData.splitFiles) {
+    let metadata_output_dir = outputPath + 'metadata/';
+    if (!fs.existsSync(metadata_output_dir)) {
+      fs.mkdirSync(metadata_output_dir, { recursive: true });
+    }
+    for (var key in metaData) {
+      await writeFile(metadata_output_dir + key, JSON.stringify(metaData[key]));
+    }
+  } else {
+>>>>>>> Stashed changes
     await writeFile(outputPath + 'metadata.json', JSON.stringify(metaData));
   }
 }
 
 async function loadConfig() {
   try {
-    const data = await readFile('config.json')
+    const data = await readFile('config.json');
     config = JSON.parse(data.toString());
   } catch (error) {}
 }
@@ -458,5 +448,5 @@ async function writeConfig() {
 }
 
 async function getFilesForTrait(trait) {
-  return (await readdir(basePath + '/' + trait)).filter(file => file !== '.DS_Store');
+  return (await readdir(basePath + '/' + trait)).filter((file) => file !== '.DS_Store');
 }
