@@ -31,6 +31,9 @@ let config = {
   generateMetadata: null,
 };
 let argv = require('minimist')(process.argv.slice(2));
+let totalCount = 0;
+let currenProgressCount = 0;
+let generatingImages = null;
 
 //DEFINITIONS
 const getDirectories = (source) =>
@@ -68,7 +71,7 @@ async function main() {
   await asyncForEach(traits, async (trait) => {
     await setWeights(trait);
   });
-  const generatingImages = ora('Generating images');
+  generatingImages = ora('Generating images');
   generatingImages.color = 'yellow';
   generatingImages.start();
   await generateImages();
@@ -276,6 +279,8 @@ async function setWeights(trait) {
     weights = config.weights;
     return;
   }
+  const isFirst = order.indexOf(trait) === 0;
+  console.log('🚀 | setWeights | order.indexOf(trait)', order, weightedTraits, order.indexOf(trait));
   const files = await getFilesForTrait(trait);
   const weightPrompt = [];
   files.forEach((file, i) => {
@@ -289,6 +294,7 @@ async function setWeights(trait) {
   const selectedWeights = await inquirer.prompt(weightPrompt);
   files.forEach((file, i) => {
     weights[file] = selectedWeights[names[file] + '_weight'];
+    if (isFirst) totalCount += weights[file];
   });
   config.weights = weights;
 }
@@ -322,6 +328,7 @@ async function generateImages() {
   await generateWeightedTraits();
   if (config.deleteDuplicates) {
     while (weightedTraits[0].length > 0 && noMoreMatches < 20000) {
+      generatingImages.text = `Generating images ${id + 1}/${totalCount}`;
       let picked = [];
       order.forEach((id) => {
         let pickedImgId = pickRandom(weightedTraits[id]);
@@ -409,19 +416,6 @@ function generateMetadataObject(id, images) {
 }
 
 async function writeMetadata() {
-<<<<<<< Updated upstream
-  if(config.metaData.splitFiles)
-  {
-    let metadata_output_dir = outputPath + "metadata/"
-    if (!fs.existsSync(metadata_output_dir)) {
-      fs.mkdirSync(metadata_output_dir, { recursive: true });
-    }
-    for (var key in metaData){
-      await writeFile(metadata_output_dir + key, JSON.stringify(metaData[key]));
-    }
-  }else
-  {
-=======
   if (config.metaData.splitFiles) {
     let metadata_output_dir = outputPath + 'metadata/';
     if (!fs.existsSync(metadata_output_dir)) {
@@ -431,7 +425,6 @@ async function writeMetadata() {
       await writeFile(metadata_output_dir + key, JSON.stringify(metaData[key]));
     }
   } else {
->>>>>>> Stashed changes
     await writeFile(outputPath + 'metadata.json', JSON.stringify(metaData));
   }
 }
