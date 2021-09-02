@@ -11,6 +11,7 @@ const inquirer = require('inquirer');
 const fs = require('fs');
 const { readFile, writeFile, readdir } = require('fs').promises;
 const mergeImages = require('merge-images');
+const checksum = require('checksum');
 const { Image, Canvas } = require('canvas');
 const ImageDataURI = require('image-data-uri');
 
@@ -20,10 +21,12 @@ let outputPath;
 let traits;
 let traitsToSort = [];
 let order = [];
+let randomPickIndex = [];
 let weights = {};
 let names = {};
 let weightedTraits = [];
 let seen = [];
+const checksumImg = [];
 let metaData = {};
 let config = {
   metaData: {},
@@ -32,7 +35,7 @@ let config = {
 };
 let argv = require('minimist')(process.argv.slice(2));
 let totalCount = 0;
-let currenProgressCount = 0;
+let lastProgressCount = 0;
 let generatingImages = null;
 
 //DEFINITIONS
@@ -76,7 +79,7 @@ async function main() {
   generatingImages.start();
   await generateImages();
   await sleep(2);
-  generatingImages.succeed('All images generated!');
+  generatingImages.succeed(`${lastProgressCount}/${totalCount} images generated!`);
   generatingImages.clear();
   if (config.generateMetadata) {
     const writingMetadata = ora('Exporting metadata');
@@ -185,6 +188,7 @@ async function generateMetadataPrompt() {
       type: 'confirm',
       name: 'createMetadata',
       message: 'Should metadata be generated?',
+      default: false,
     },
   ]);
   config.generateMetadata = createMetadata;
@@ -279,8 +283,6 @@ async function setWeights(trait) {
     weights = config.weights;
     return;
   }
-  const isFirst = order.indexOf(trait) === 0;
-  console.log('🚀 | setWeights | order.indexOf(trait)', order, weightedTraits, order.indexOf(trait));
   const files = await getFilesForTrait(trait);
   const weightPrompt = [];
   files.forEach((file, i) => {
@@ -294,7 +296,6 @@ async function setWeights(trait) {
   const selectedWeights = await inquirer.prompt(weightPrompt);
   files.forEach((file, i) => {
     weights[file] = selectedWeights[names[file] + '_weight'];
-    if (isFirst) totalCount += weights[file];
   });
   config.weights = weights;
 }
@@ -318,6 +319,29 @@ async function generateWeightedTraits() {
     });
     weightedTraits.push(traitWeights);
   }
+  randomPickIndex = randomizeTraits(weightedTraits);
+}
+
+function randomizeTraits(traits) {
+  const result = [];
+  const totalCountBgTrait = traits[0].length;
+  totalCount = totalCountBgTrait;
+
+  traits.forEach((trait) => {
+    if (trait.length >= totalCountBgTrait) {
+      result.push([]);
+    } else {
+      const stepCount = trait.length;
+      const stepValue = Math.floor(totalCountBgTrait / stepCount);
+      const randomIndexForTrait = new Array(stepCount * 10).fill().map((_, index) => {
+        return randomNumber(stepValue * index, stepValue * index + stepValue);
+      });
+
+      result.push(randomIndexForTrait);
+    }
+  });
+
+  return result;
 }
 
 //GENARATE IMAGES
@@ -328,30 +352,40 @@ async function generateImages() {
   await generateWeightedTraits();
   if (config.deleteDuplicates) {
     while (weightedTraits[0].length > 0 && noMoreMatches < 20000) {
-      generatingImages.text = `Generating images ${id + 1}/${totalCount}`;
       let picked = [];
-      order.forEach((id) => {
-        let pickedImgId = pickRandom(weightedTraits[id]);
-        picked.push(pickedImgId);
-        let pickedImg = weightedTraits[id][pickedImgId];
-        if (pickedImg) images.push(basePath + traits[id] + '/' + pickedImg);
+      order.forEach((orderId) => {
+        const randomPick = randomPickIndex[orderId];
+        if (randomPick.length === 0 || randomPick.includes(id)) {
+          let pickedImgId = pickRandom(weightedTraits[orderId]);
+          let pickedImg = weightedTraits[orderId][pickedImgId];
+          if (pickedImg) {
+            picked.push(pickedImgId);
+            images.push(basePath + traits[orderId] + '/' + pickedImg);
+          }
+        } else {
+          picked.push(-1);
+        }
       });
 
-      if (existCombination(images)) {
-        noMoreMatches++;
-        images = [];
-      } else {
+      const b64 = await mergeImages(images, { Canvas: Canvas, Image: Image });
+      generatingImages.text = `Generating images ${id + 1}/${totalCount} | attempt: ${noMoreMatches}`;
+      const cksum = checksum(b64);
+      if (!checksumImg.includes(cksum)) {
+        checksumImg.push(cksum);
         generateMetadataObject(id, images);
         noMoreMatches = 0;
         order.forEach((id, i) => {
           remove(weightedTraits[id], picked[i]);
         });
         seen.push(images);
-        const b64 = await mergeImages(images, { Canvas: Canvas, Image: Image });
         await ImageDataURI.outputFile(b64, outputPath + `${id}.png`);
         images = [];
         id++;
+      } else {
+        noMoreMatches++;
+        images = [];
       }
+      lastProgressCount = id;
     }
   } else {
     while (weightedTraits[0].length > 0) {
@@ -386,7 +420,7 @@ function pickRandom(array) {
 }
 
 function remove(array, toPick) {
-  array.splice(toPick, 1);
+  if (toPick >= 0) array.splice(toPick, 1);
 }
 
 function existCombination(contains) {
